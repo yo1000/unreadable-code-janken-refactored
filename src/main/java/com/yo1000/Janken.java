@@ -2,6 +2,8 @@ package com.yo1000;
 
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class Janken {
     private final InputStream in;
@@ -19,7 +21,19 @@ public class Janken {
         HandTypesScanner scanner = new HandTypesScanner(in);
 
         while (yourHand.isDrawn(comHand)) {
-            out.print("1=Rock, 2=Paper, 3=Scissors... [1/2/3]: ");
+            out.print(Arrays.stream(HandTypes.values())
+                    .filter(handTypes -> handTypes != HandTypes.UNDECIDED)
+                    .map(HandTypes::getText)
+                    .collect(Collectors.joining(", ")));
+
+            out.print("... ");
+
+            out.print("[" + Arrays.stream(HandTypes.values())
+                    .filter(handTypes -> handTypes != HandTypes.UNDECIDED)
+                    .map(HandTypes::getValue)
+                    .map(String::valueOf)
+                    .collect(Collectors.joining("/"))
+                    + "]: ");
 
             yourHand = scanner.nextHandTypesUntilValid();
             out.println("Chose by You: " + yourHand.getText());

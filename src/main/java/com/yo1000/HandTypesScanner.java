@@ -1,7 +1,6 @@
 package com.yo1000;
 
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.Scanner;
 
 public class HandTypesScanner {
@@ -21,15 +20,6 @@ public class HandTypesScanner {
 
     public HandTypes nextHandTypes() {
         String s = scanner.next();
-
-        if (Arrays.stream(HandTypes.values())
-                .filter(handTypes -> handTypes != HandTypes.UNDECIDED)
-                .map(HandTypes::getValue)
-                .map(String::valueOf)
-                .toList().contains(s)) {
-            return HandTypes.of(s);
-        } else {
-            return HandTypes.UNDECIDED;
-        }
+        return HandTypes.of(s);
     }
 }

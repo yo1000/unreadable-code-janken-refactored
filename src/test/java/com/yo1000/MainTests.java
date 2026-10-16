@@ -14,15 +14,16 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 class JankenTests {
-
     @Test
     void play_acceptsInputAndPrintsResult() {
         // [0]=Rock-win     | [1]=Rock-lose     | [2]=Rock-draw
         // [3]=Paper-win    | [4]=Paper-lose    | [5]=Paper-draw
         // [6]=Scissors-win | [7]=Scissors-lose | [8]=Scissors-draw
-        int[] winLoseFlags = new int[] {0, 0, 0, 0, 0, 0, 0, 0, 0};
+        // [9]=Jackal-win   | [a]=Jackal-lose   | [b]=Jackal=draw
+        int[] winLoseFlags = new int[(HandTypes.values().length - 1) * 3];
+        Arrays.fill(winLoseFlags, 0);
 
-        int hand = 1; // 1=Rock, 2=Paper, 3=Scissors
+        int hand = 1; // 1=Rock, 2=Paper, 3=Scissors, 4=Jackal
 
         // `i < 1000` is a safety check to prevent infinite loops caused by test-side bugs
         for (int i = 0; i < 1000 && Arrays.stream(winLoseFlags).anyMatch(value -> value != 1); i++) {
@@ -40,13 +41,13 @@ class JankenTests {
 
             String output = outBytes.toString(StandardCharsets.UTF_8);
 
-            Assertions.assertTrue(output.contains("1=Rock, 2=Paper, 3=Scissors... [1/2/3]:"));
+            Assertions.assertTrue(output.contains("1=Rock, 2=Paper, 3=Scissors, 4=Jackal... [1/2/3/4]:"));
             Assertions.assertTrue(output.contains("Chose by You: " + hand));
             Assertions.assertTrue(output.contains("Chose by COM:"));
             Assertions.assertTrue(output.contains("You win!") || output.contains("You lose."));
 
             Pattern patternYou = Pattern.compile("Chose by You:\\s*(" + hand + "=.+)", Pattern.MULTILINE);
-            Pattern patternCOM = Pattern.compile("Chose by COM:\\s*([123]=.+)", Pattern.MULTILINE);
+            Pattern patternCOM = Pattern.compile("Chose by COM:\\s*([1-" + (HandTypes.values().length - 1) + "]=.+)", Pattern.MULTILINE);
 
             Matcher matcherYou = patternYou.matcher(output);
             Matcher matcherCOM = patternCOM.matcher(output);
@@ -60,8 +61,6 @@ class JankenTests {
             String choseByYou = matcherYou.group(1);
             String choseByCOM = matcherCOM.group(1);
 
-            boolean won = false;
-            boolean lost = false;
             int drawCount = 0;
 
             // Continue the loop until it is no longer a draw
@@ -88,66 +87,125 @@ class JankenTests {
             // Assert not draw (It must be decided by win or loss)
             Assertions.assertNotEquals(choseByYou, choseByCOM);
 
-            Assertions.assertTrue(choseByYou.equals("1=Rock") || choseByYou.equals("2=Paper") || choseByYou.equals("3=Scissors"));
-            Assertions.assertTrue(choseByCOM.equals("1=Rock") || choseByCOM.equals("2=Paper") || choseByCOM.equals("3=Scissors"));
+            final String chosenByYou = choseByYou;
+            final String chosenByCOM = choseByCOM;
+
+            Assertions.assertTrue(Arrays.stream(HandTypes.values())
+                    .filter(handTypes -> handTypes != HandTypes.UNDECIDED)
+                    .map(HandTypes::getText)
+                    .anyMatch(chosenByYou::equals));
+
+            Assertions.assertTrue(Arrays.stream(HandTypes.values())
+                    .filter(handTypes -> handTypes != HandTypes.UNDECIDED)
+                    .map(HandTypes::getText)
+                    .anyMatch(chosenByCOM::equals));
 
             // Win or lose is displayed only once at the end.
             Pattern patternResult = Pattern.compile("(You win!|You lose\\.)", Pattern.MULTILINE);
             Matcher matcherResult = patternResult.matcher(output);
             Assertions.assertTrue(matcherResult.find());
-            String result = matcherResult.group(1);
+            String resultMessage = matcherResult.group(1);
             Assertions.assertFalse(matcherResult.find());
+
+            final int DRAW = 0;
+            final int WIN = 1;
+            final int LOSE = 2;
+
+            int result = -1;
 
             switch (choseByYou) {
                 case "1=Rock" -> {
-                    if (choseByCOM.equals("2=Paper")) {
-                        lost = true;
-                        Assertions.assertEquals("You lose.", result);
-                    } else if (choseByCOM.equals("3=Scissors")) {
-                        won = true;
-                        Assertions.assertEquals("You win!", result);
-                    } else {
-                        Assertions.fail();
+                    switch (choseByCOM) {
+                        case "1=Rock" -> {
+                            result = DRAW;
+                        }
+                        case "2=Paper" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        case "3=Scissors" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        case "4=Jackal" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        default -> Assertions.fail();
                     }
                 }
                 case "2=Paper" -> {
-                    if (choseByCOM.equals("3=Scissors")) {
-                        lost = true;
-                        Assertions.assertEquals("You lose.", result);
-                    } else if (choseByCOM.equals("1=Rock")) {
-                        won = true;
-                        Assertions.assertEquals("You win!", result);
-                    } else {
-                        Assertions.fail();
+                    switch (choseByCOM) {
+                        case "1=Rock" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        case "2=Paper" -> {
+                            result = DRAW;
+                        }
+                        case "3=Scissors" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        case "4=Jackal" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        default -> Assertions.fail();
                     }
                 }
                 case "3=Scissors" -> {
-                    if (choseByCOM.equals("1=Rock")) {
-                        lost = true;
-                        Assertions.assertEquals("You lose.", result);
-                    } else if (choseByCOM.equals("2=Paper")) {
-                        won = true;
-                        Assertions.assertEquals("You win!", result);
-                    } else {
-                        Assertions.fail();
+                    switch (choseByCOM) {
+                        case "1=Rock" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        case "2=Paper" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        case "3=Scissors" -> {
+                            result = DRAW;
+                        }
+                        case "4=Jackal" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        default -> Assertions.fail();
+                    }
+                }
+                case "4=Jackal" -> {
+                    switch (choseByCOM) {
+                        case "1=Rock" -> {
+                            result = LOSE;
+                            Assertions.assertEquals("You lose.", resultMessage);
+                        }
+                        case "2=Paper" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        case "3=Scissors" -> {
+                            result = WIN;
+                            Assertions.assertEquals("You win!", resultMessage);
+                        }
+                        case "4=Jackal" -> {
+                            result = DRAW;
+                        }
+                        default -> Assertions.fail();
                     }
                 }
                 default -> Assertions.fail();
             }
 
-            if (won) {
-                winLoseFlags[(hand - 1) * 3] = 1;
-            } else if (lost) {
-                winLoseFlags[(hand - 1) * 3 + 1] = 1;
-            }
-
             if (drawCount > 0) {
-                winLoseFlags[(hand - 1) * 3 + 2] = 1;
+                winLoseFlags[(hand - 1) * 3 + DRAW] = 1;
             }
 
-            if (winLoseFlags[(hand - 1) * 3] == 1
-                    && winLoseFlags[(hand - 1) * 3 + 1] == 1
-                    && winLoseFlags[(hand - 1) * 3 + 2] == 1) {
+            winLoseFlags[(hand - 1) * 3 + result] = 1;
+
+            if (winLoseFlags[(hand - 1) * 3 + DRAW] == 1
+                    && winLoseFlags[(hand - 1) * 3 + WIN] == 1
+                    && winLoseFlags[(hand - 1) * 3 + LOSE] == 1) {
                 hand++;
             }
 
@@ -157,7 +215,6 @@ class JankenTests {
             System.out.println("Flags=" + Arrays.stream(winLoseFlags).mapToObj(String::valueOf).collect(Collectors.joining()));
         }
 
-        Assertions.assertArrayEquals(new int [] {1, 1, 1, 1, 1, 1, 1, 1, 1}, winLoseFlags,
-                () -> "not covered win-lose patterns: " + Arrays.stream(winLoseFlags).mapToObj(String::valueOf).collect(Collectors.joining()));
+        Assertions.assertTrue(Arrays.stream(winLoseFlags).allMatch(value -> value == 1));
     }
 }
